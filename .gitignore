@@ -1,5 +1,10 @@
 # Ignore everything
 *
+!index.html
+!all_boards_output.json
+!.gitignore
+!preview.bat
+
 
 # Whitelist specific files
 !index.html
