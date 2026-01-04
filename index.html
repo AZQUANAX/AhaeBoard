@@ -46,6 +46,12 @@
             --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5);
         }
 
+        html {
+            /* Base font size for rem scaling. Default 100% = 16px usually */
+            font-size: 100%;
+            transition: font-size 0.2s ease;
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -84,30 +90,56 @@
             transition: transform 0.3s ease, background-color 0.3s, border-color 0.3s;
         }
 
+        aside header {
+            /* Sidebar header overrides main header styles */
+            padding: 0 0 1.5rem 0;
+            background: none;
+            display: flex;
+            align-items: center;
+            border: none;
+        }
+
         aside h1 {
             font-size: 1.25rem;
             font-weight: 700;
-            margin-bottom: 2rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
             color: var(--text-primary);
-            padding: 0 0.5rem;
+            flex: 1;
+            /* Pushes buttons to right */
+            margin: 0;
         }
 
-        .theme-toggle-btn {
+        .controls {
+            display: flex;
+            gap: 0.2rem;
+            align-items: center;
+        }
+
+        .action-btn {
             background: none;
-            border: none;
+            border: 1px solid transparent;
+            /* Prevent layout shift */
             color: var(--text-secondary);
             cursor: pointer;
-            font-size: 1.2rem;
-            padding: 0.5rem;
-            transition: color 0.2s;
-            margin-left: auto;
+            font-size: 0.9rem;
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 0.3rem;
+            transition: all 0.2s;
         }
 
-        .theme-toggle-btn:hover {
+        .action-btn:hover {
             color: var(--text-primary);
+            background-color: var(--hover-bg);
+        }
+
+        .action-btn:active {
+            transform: scale(0.95);
         }
 
         nav {
@@ -463,13 +495,20 @@
     <div id="app">
         <!-- Sidebar -->
         <aside id="sidebar">
-            <div
-                style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem; padding: 0 0.5rem;">
+            <header>
                 <h1 style="margin:0;"><i class="fa-solid fa-shapes"></i> AhaeBoard</h1>
-                <button id="theme-btn" class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle Dark Mode">
-                    <i class="fa-solid fa-moon"></i>
-                </button>
-            </div>
+                <div class="controls">
+                    <button class="action-btn" onclick="changeFontSize(-5)" title="Decrease Text Size">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                    <button class="action-btn" onclick="changeFontSize(5)" title="Increase Text Size">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <button id="theme-btn" class="action-btn" onclick="toggleTheme()" title="Toggle Dark Mode">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
+                </div>
+            </header>
 
             <nav id="board-nav">
                 <!-- Board items will be injected here -->
@@ -507,6 +546,7 @@
         // State
         let allData = null;
         let currentBoardKey = null;
+        let currentFontSizePercent = 100;
 
         // DOM Elements
         const sidebar = document.getElementById('sidebar');
@@ -519,8 +559,9 @@
         const detailContent = document.getElementById('detail-content');
         const themeBtn = document.getElementById('theme-btn');
 
-        // Theme Toggle Logic
-        function initTheme() {
+        // Settings Logic
+        function initSettings() {
+            // 1. Theme
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme === 'dark') {
                 document.documentElement.setAttribute('data-theme', 'dark');
@@ -529,6 +570,13 @@
                 document.documentElement.removeAttribute('data-theme');
                 themeBtn.innerHTML = '<i class="fa-solid fa-moon"></i>';
             }
+
+            // 2. Font Size
+            const savedSize = localStorage.getItem('fontSize');
+            if (savedSize) {
+                currentFontSizePercent = parseInt(savedSize);
+            }
+            applyFontSize();
         }
 
         function toggleTheme() {
@@ -544,6 +592,20 @@
             }
         }
 
+        function changeFontSize(change) {
+            currentFontSizePercent += change;
+            // Limit range: 70% to 150%
+            if (currentFontSizePercent < 70) currentFontSizePercent = 70;
+            if (currentFontSizePercent > 150) currentFontSizePercent = 150;
+
+            localStorage.setItem('fontSize', currentFontSizePercent);
+            applyFontSize();
+        }
+
+        function applyFontSize() {
+            document.documentElement.style.fontSize = `${currentFontSizePercent}%`;
+        }
+
         // Utils
         const formatDate = (timestamp) => {
             if (!timestamp) return '';
@@ -557,15 +619,14 @@
         };
 
         const formatBoardName = (name) => {
-            return name.replace('zetyx_board_', '').replace(/_/g, ' '); // Strip prefix, replace underscores
+            return name.replace('zetyx_board_', '').replace(/_/g, ' ');
         };
 
-        // Mobile Sidebar Toggle
+        // UI Logic
         function toggleSidebar() {
             const isOpen = sidebar.classList.contains('open');
             if (isOpen) {
                 sidebar.classList.remove('open');
-                // Only hide backdrop if detail view is NOT open
                 if (!slideOver.classList.contains('open')) {
                     backdrop.classList.remove('open');
                 }
@@ -575,18 +636,15 @@
             }
         }
 
-        // Handle Backdrop Click
         function handleBackdropClick() {
-            if (slideOver.classList.contains('open')) closePanel();
+            if (slideOver.classList.contains('open')) closePanel(true);
             if (sidebar.classList.contains('open')) toggleSidebar();
         }
 
-        // Hash Helper
+        // Routing & Data
         function updateHash(boardKey, postNo = null) {
             let hash = `board=${encodeURIComponent(boardKey)}`;
             if (postNo) hash += `&post=${postNo}`;
-            // Use replaceState to avoid cluttering history if just clicking around rapidly? 
-            // Actually pushState is better for back button support.
             window.location.hash = hash;
         }
 
@@ -599,19 +657,16 @@
             };
         }
 
-        // Fetch Data
         async function init() {
-            initTheme(); // Initialize Theme
+            initSettings();
             try {
-                const response = await fetch('all_boards_output.json');
+                // Cache busting
+                const response = await fetch('all_boards_output.json?v=' + new Date().getTime());
                 if (!response.ok) throw new Error('Network response was not ok');
                 allData = await response.json();
                 renderNav();
 
-                // Route based on Hash or Default
                 handleRouting();
-
-                // Listen for hash changes (Back button support)
                 window.addEventListener('hashchange', handleRouting);
 
             } catch (error) {
@@ -622,29 +677,25 @@
 
         function handleRouting() {
             const { board, post } = parseHash();
-            const targetBoard = board || Object.keys(allData.boards)[0]; // Default to first
+            const targetBoard = board || Object.keys(allData.boards)[0];
 
             if (targetBoard && allData.boards[targetBoard]) {
-                // Only reload board if changing
                 if (currentBoardKey !== targetBoard) {
-                    loadBoard(targetBoard, false); // false = don't update hash again
+                    loadBoard(targetBoard, false);
                 }
 
                 if (post) {
-                    // Find post object
                     const boardPosts = allData.boards[targetBoard].posts || [];
-                    const targetPost = boardPosts.find(p => p.no == post); // Loose equality for string/int
+                    const targetPost = boardPosts.find(p => p.no == post);
                     if (targetPost) {
                         openPost(targetPost, false);
                     }
                 } else {
-                    // If no post in hash, ensure panel is closed
                     if (slideOver.classList.contains('open')) closePanel(false);
                 }
             }
         }
 
-        // Render Sidebar Navigation
         function renderNav() {
             boardNav.innerHTML = '';
             Object.keys(allData.boards).forEach(key => {
@@ -652,10 +703,7 @@
                 item.className = 'nav-item';
                 item.textContent = formatBoardName(key);
                 item.onclick = () => {
-                    // Clicking nav always resets to board view
                     updateHash(key);
-                    // loadBoard handled by hash listener
-                    // On mobile, close sidebar
                     if (window.innerWidth <= 768) toggleSidebar();
                 };
                 item.dataset.key = key;
@@ -663,26 +711,20 @@
             });
         }
 
-        // Load a specific board
         function loadBoard(boardKey, updateUrl = true) {
             currentBoardKey = boardKey;
 
             if (updateUrl) updateHash(boardKey);
 
-            // Update Active State in Nav
             document.querySelectorAll('.nav-item').forEach(el => {
                 if (el.dataset.key === boardKey) el.classList.add('active');
                 else el.classList.remove('active');
             });
 
-            // Update Header
             boardTitle.textContent = formatBoardName(boardKey);
-
-            // Render Posts
             renderPosts(boardKey);
         }
 
-        // Render Posts List
         function renderPosts(boardKey) {
             postList.innerHTML = '';
             const boardData = allData.boards[boardKey];
@@ -713,21 +755,18 @@
                     ${commentCount > 0 ? `<div class="comment-badge"><i class="fa-regular fa-comment-dots"></i> ${commentCount}</div>` : ''}
                 `;
                 el.onclick = () => {
-                    // Clicking post updates Hash
                     updateHash(boardKey, post.no);
                 };
                 postList.appendChild(el);
             });
         }
 
-        // Get Comments Helper
         function getComments(boardKey, postNo) {
             const boardData = allData.boards[boardKey];
             const commentsMap = boardData.comments_by_parent || {};
             return commentsMap[postNo] || commentsMap[parseInt(postNo)] || [];
         }
 
-        // Open Post Details
         function openPost(post, updateUrl = true) {
             if (updateUrl) updateHash(currentBoardKey, post.no);
 
@@ -766,34 +805,22 @@
             `;
 
             detailContent.innerHTML = html;
-
-            // Show Panel
             slideOver.classList.add('open');
             backdrop.classList.add('open');
         }
 
-        // Close Panel
         function closePanel(updateUrl = true) {
             slideOver.classList.remove('open');
-            // Only hide backdrop if sidebar is NOT open
             if (!sidebar.classList.contains('open')) {
                 backdrop.classList.remove('open');
             }
-            // Navigate back to board view
             if (updateUrl && currentBoardKey) updateHash(currentBoardKey);
         }
 
         closeBtn.onclick = () => closePanel(true);
+        backdrop.onclick = handleBackdropClick;
 
-        // Backdrop click handles closing both/either
-        backdrop.onclick = () => {
-            if (slideOver.classList.contains('open')) closePanel(true);
-            if (sidebar.classList.contains('open')) toggleSidebar();
-        };
-
-        // Init handled by Hash Logic
         init();
-
     </script>
 </body>
 
