@@ -623,8 +623,16 @@
                     <i class="fa-solid fa-bars"></i>
                 </button>
                 <h2 id="current-board-title">Select a Board</h2>
+                <div class="view-controls">
+                    <button id="view-btn-list" class="view-btn active" onclick="setViewMode('list')" title="List View">
+                        <i class="fa-solid fa-list"></i>
+                    </button>
+                    <button id="view-btn-grid" class="view-btn" onclick="setViewMode('grid')" title="Grid View">
+                        <i class="fa-solid fa-border-all"></i>
+                    </button>
+                </div>
             </header>
-            <div id="post-list" class="post-list-container">
+            <div id="post-list" class="post-list-container list-view">
                 <div class="loading">Loading data...</div>
             </div>
         </main>
@@ -648,6 +656,7 @@
         let allData = null;
         let currentBoardKey = null;
         let currentFontSizePercent = 100;
+        let currentViewMode = 'list'; // 'list' or 'grid'
 
         // DOM Elements
         const sidebar = document.getElementById('sidebar');
@@ -659,6 +668,8 @@
         const closeBtn = document.getElementById('close-btn');
         const detailContent = document.getElementById('detail-content');
         const themeBtn = document.getElementById('theme-btn');
+        const viewBtnList = document.getElementById('view-btn-list');
+        const viewBtnGrid = document.getElementById('view-btn-grid');
 
         // Settings Logic
         function initSettings() {
@@ -678,6 +689,33 @@
                 currentFontSizePercent = parseInt(savedSize);
             }
             applyFontSize();
+
+            // 3. View Mode
+            const savedView = localStorage.getItem('viewMode');
+            if (savedView) {
+                currentViewMode = savedView;
+            }
+            applyViewMode();
+        }
+
+        function setViewMode(mode) {
+            currentViewMode = mode;
+            localStorage.setItem('viewMode', mode);
+            applyViewMode();
+        }
+
+        function applyViewMode() {
+            if (currentViewMode === 'grid') {
+                postList.classList.remove('list-view');
+                postList.classList.add('grid-view');
+                if (viewBtnGrid) viewBtnGrid.classList.add('active');
+                if (viewBtnList) viewBtnList.classList.remove('active');
+            } else {
+                postList.classList.remove('grid-view');
+                postList.classList.add('list-view');
+                if (viewBtnList) viewBtnList.classList.add('active');
+                if (viewBtnGrid) viewBtnGrid.classList.remove('active');
+            }
         }
 
         function toggleTheme() {
