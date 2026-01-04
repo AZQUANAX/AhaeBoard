@@ -1,0 +1,7 @@
+# Ignore everything
+*
+
+# Whitelist specific files
+!index.html
+!all_boards_output.json
+!.gitignore
