@@ -79,7 +79,8 @@
 
         /* Sidebar */
         aside {
-            width: 260px;
+            width: 17rem;
+            /* Changed from px to rem for font scaling */
             background-color: var(--sidebar-bg);
             border-right: 1px solid var(--border-color);
             display: flex;
@@ -87,7 +88,7 @@
             padding: 1.5rem 1rem;
             flex-shrink: 0;
             z-index: 50;
-            transition: transform 0.3s ease, background-color 0.3s, border-color 0.3s;
+            transition: transform 0.3s ease, background-color 0.3s, border-color 0.3s, width 0.2s;
         }
 
         aside header {
@@ -450,14 +451,14 @@
             aside {
                 position: fixed;
                 top: 0;
-                left: -280px;
+                left: -18rem;
                 /* Hide off-screen */
                 height: 100%;
                 box-shadow: 5px 0 25px rgba(0, 0, 0, 0.1);
             }
 
             aside.open {
-                transform: translateX(280px);
+                transform: translateX(18rem);
             }
 
             .mobile-menu-btn {
