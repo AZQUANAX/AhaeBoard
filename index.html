@@ -581,6 +581,24 @@
             if (sidebar.classList.contains('open')) toggleSidebar();
         }
 
+        // Hash Helper
+        function updateHash(boardKey, postNo = null) {
+            let hash = `board=${encodeURIComponent(boardKey)}`;
+            if (postNo) hash += `&post=${postNo}`;
+            // Use replaceState to avoid cluttering history if just clicking around rapidly? 
+            // Actually pushState is better for back button support.
+            window.location.hash = hash;
+        }
+
+        function parseHash() {
+            const hash = window.location.hash.substring(1);
+            const params = new URLSearchParams(hash);
+            return {
+                board: params.get('board'),
+                post: params.get('post')
+            };
+        }
+
         // Fetch Data
         async function init() {
             initTheme(); // Initialize Theme
@@ -590,13 +608,39 @@
                 allData = await response.json();
                 renderNav();
 
-                // Select first board by default
-                const firstBoard = Object.keys(allData.boards)[0];
-                if (firstBoard) loadBoard(firstBoard);
+                // Route based on Hash or Default
+                handleRouting();
+
+                // Listen for hash changes (Back button support)
+                window.addEventListener('hashchange', handleRouting);
 
             } catch (error) {
                 console.error('Error fetching data:', error);
                 postList.innerHTML = '<div class="loading">Error loading data. Please check console.</div>';
+            }
+        }
+
+        function handleRouting() {
+            const { board, post } = parseHash();
+            const targetBoard = board || Object.keys(allData.boards)[0]; // Default to first
+
+            if (targetBoard && allData.boards[targetBoard]) {
+                // Only reload board if changing
+                if (currentBoardKey !== targetBoard) {
+                    loadBoard(targetBoard, false); // false = don't update hash again
+                }
+
+                if (post) {
+                    // Find post object
+                    const boardPosts = allData.boards[targetBoard].posts || [];
+                    const targetPost = boardPosts.find(p => p.no == post); // Loose equality for string/int
+                    if (targetPost) {
+                        openPost(targetPost, false);
+                    }
+                } else {
+                    // If no post in hash, ensure panel is closed
+                    if (slideOver.classList.contains('open')) closePanel(false);
+                }
             }
         }
 
@@ -608,8 +652,10 @@
                 item.className = 'nav-item';
                 item.textContent = formatBoardName(key);
                 item.onclick = () => {
-                    loadBoard(key);
-                    // On mobile, close sidebar after selection
+                    // Clicking nav always resets to board view
+                    updateHash(key);
+                    // loadBoard handled by hash listener
+                    // On mobile, close sidebar
                     if (window.innerWidth <= 768) toggleSidebar();
                 };
                 item.dataset.key = key;
@@ -618,8 +664,10 @@
         }
 
         // Load a specific board
-        function loadBoard(boardKey) {
+        function loadBoard(boardKey, updateUrl = true) {
             currentBoardKey = boardKey;
+
+            if (updateUrl) updateHash(boardKey);
 
             // Update Active State in Nav
             document.querySelectorAll('.nav-item').forEach(el => {
@@ -664,7 +712,10 @@
                     </div>
                     ${commentCount > 0 ? `<div class="comment-badge"><i class="fa-regular fa-comment-dots"></i> ${commentCount}</div>` : ''}
                 `;
-                el.onclick = () => openPost(post);
+                el.onclick = () => {
+                    // Clicking post updates Hash
+                    updateHash(boardKey, post.no);
+                };
                 postList.appendChild(el);
             });
         }
@@ -677,7 +728,9 @@
         }
 
         // Open Post Details
-        function openPost(post) {
+        function openPost(post, updateUrl = true) {
+            if (updateUrl) updateHash(currentBoardKey, post.no);
+
             const comments = getComments(currentBoardKey, post.no);
 
             let commentsHtml = '';
@@ -720,17 +773,25 @@
         }
 
         // Close Panel
-        function closePanel() {
+        function closePanel(updateUrl = true) {
             slideOver.classList.remove('open');
             // Only hide backdrop if sidebar is NOT open
             if (!sidebar.classList.contains('open')) {
                 backdrop.classList.remove('open');
             }
+            // Navigate back to board view
+            if (updateUrl && currentBoardKey) updateHash(currentBoardKey);
         }
 
-        closeBtn.onclick = closePanel;
+        closeBtn.onclick = () => closePanel(true);
 
-        // Init
+        // Backdrop click handles closing both/either
+        backdrop.onclick = () => {
+            if (slideOver.classList.contains('open')) closePanel(true);
+            if (sidebar.classList.contains('open')) toggleSidebar();
+        };
+
+        // Init handled by Hash Logic
         init();
 
     </script>
