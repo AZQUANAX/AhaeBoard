@@ -3,9 +3,6 @@
 !index.html
 !all_boards_output.json
 !.gitignore
-
+!robots.txt
 
 # Whitelist specific files
-!index.html
-!all_boards_output.json
-!.gitignore
