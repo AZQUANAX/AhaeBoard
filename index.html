@@ -74,6 +74,96 @@
             transition: background-color 0.3s, color 0.3s;
         }
 
+        /* Auth Gate */
+        body[data-auth="locked"] #app,
+        body[data-auth="locked"] #backdrop,
+        body[data-auth="locked"] #slide-over {
+            display: none;
+        }
+
+        #auth-overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            background: var(--bg-color);
+            z-index: 200;
+        }
+
+        body[data-auth="locked"] #auth-overlay {
+            display: flex;
+        }
+
+        .auth-card {
+            width: min(22rem, 100%);
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .auth-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .auth-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .auth-form {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .auth-input {
+            flex: 1;
+            padding: 0.6rem 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .auth-input:focus {
+            outline: none;
+            border-color: var(--text-accent);
+            box-shadow: 0 0 0 2px rgb(59 130 246 / 0.2);
+        }
+
+        .auth-submit {
+            padding: 0.6rem 0.9rem;
+            border-radius: 0.5rem;
+            border: none;
+            background: var(--text-accent);
+            color: #ffffff;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.15s ease, filter 0.15s ease;
+        }
+
+        .auth-submit:hover {
+            filter: brightness(1.05);
+        }
+
+        .auth-submit:active {
+            transform: scale(0.98);
+        }
+
+        .auth-error {
+            margin-top: 0.5rem;
+            min-height: 1rem;
+            font-size: 0.8rem;
+            color: #ef4444;
+        }
+
         /* Layout */
         #app {
             display: flex;
@@ -589,7 +679,19 @@
     </style>
 </head>
 
-<body>
+<body data-auth="locked">
+    <div id="auth-overlay" aria-modal="true" role="dialog">
+        <div class="auth-card">
+            <div class="auth-title">AhaeBoard</div>
+            <div class="auth-subtitle">비밀번호를 입력하세요.</div>
+            <form id="auth-form" class="auth-form">
+                <input id="auth-input" class="auth-input" type="password" autocomplete="current-password"
+                    placeholder="비밀번호" required />
+                <button class="auth-submit" type="submit">입장</button>
+            </form>
+            <div id="auth-error" class="auth-error" aria-live="polite"></div>
+        </div>
+    </div>
 
     <div id="app">
         <!-- Sidebar -->
@@ -668,6 +770,12 @@
         const themeBtn = document.getElementById('theme-btn');
         const viewBtnList = document.getElementById('view-btn-list');
         const viewBtnGrid = document.getElementById('view-btn-grid');
+        const authForm = document.getElementById('auth-form');
+        const authInput = document.getElementById('auth-input');
+        const authError = document.getElementById('auth-error');
+
+        const PASSWORD_HASH = 'fe2592b42a727e977f055947385b709cc82b16b9a87f88c6abf3900d65d0cdc3';
+        let isAuthed = false;
 
         // Settings Logic
         function initSettings() {
@@ -743,6 +851,57 @@
             document.documentElement.style.fontSize = `${currentFontSizePercent}%`;
         }
 
+        async function sha256Hex(text) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(text);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(hashBuffer))
+                .map(byte => byte.toString(16).padStart(2, '0'))
+                .join('');
+        }
+
+        function setAuthError(message) {
+            authError.textContent = message;
+        }
+
+        async function handleAuthSubmit(event) {
+            event.preventDefault();
+            if (isAuthed) return;
+
+            const input = authInput.value;
+            if (!input) {
+                setAuthError('비밀번호를 입력하세요.');
+                authInput.focus();
+                return;
+            }
+
+            try {
+                const hash = await sha256Hex(input);
+                if (hash === PASSWORD_HASH) {
+                    isAuthed = true;
+                    setAuthError('');
+                    authInput.value = '';
+                    document.body.removeAttribute('data-auth');
+                    init();
+                } else {
+                    setAuthError('비밀번호가 맞지 않습니다.');
+                    authInput.value = '';
+                    authInput.focus();
+                }
+            } catch (error) {
+                console.error('Password check failed:', error);
+                setAuthError('검증에 실패했습니다. 브라우저를 확인해주세요.');
+            }
+        }
+
+        function initAuthGate() {
+            authForm.addEventListener('submit', handleAuthSubmit);
+            authInput.addEventListener('input', () => {
+                if (authError.textContent) setAuthError('');
+            });
+            authInput.focus();
+        }
+
         // Utils
         const formatDate = (timestamp) => {
             if (!timestamp) return '';
@@ -795,7 +954,6 @@
         }
 
         async function init() {
-            initSettings();
             try {
                 // Cache busting
                 const response = await fetch('all_boards_output.json?v=' + new Date().getTime());
@@ -957,7 +1115,12 @@
         closeBtn.onclick = () => closePanel(true);
         backdrop.onclick = handleBackdropClick;
 
-        init();
+        function boot() {
+            initSettings();
+            initAuthGate();
+        }
+
+        boot();
     </script>
 </body>
 
